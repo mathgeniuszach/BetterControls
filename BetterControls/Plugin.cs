@@ -33,12 +33,22 @@ namespace DysonSphereProgram.Modding.BetterControls
         }
     }
 
+    public static class KeyIds {
+        public const int Jump = BuiltinKey.跳跃;
+        public const int Takeoff = BuiltinKey.起飞;
+        public const int ClosePanel0 = BuiltinKey.关闭面板0;
+        public const int Inventory = BuiltinKey.打开物品清单;
+        public const int ClosePanel1 = BuiltinKey.关闭面板1;
+        public const int GameMenu = BuiltinKey.打开游戏菜单;
+    }
+
     class BetterControls {
         static bool[] conflicts = null;
         static Color conflictColor = Color.red;
         static Dictionary<int, int> indexes = new Dictionary<int, int>();
         static Dictionary<int, int> rindexes = new Dictionary<int, int>();
         static Dictionary<int, int> groups = new Dictionary<int, int>();
+        static Dictionary<int, int> linked = new Dictionary<int, int>();
 
         static CombineKey getKey(CombineKey builtin, CombineKey overrider) {
             return overrider.IsNull() ? builtin : overrider;
@@ -46,16 +56,16 @@ namespace DysonSphereProgram.Modding.BetterControls
 
         public static bool inventoryKeyDown() {
             // Function to detect whether or not either of the inventory buttons are held down
-            if (!VFInput.override_keys[34].IsNull()) {
-                return VFInput.override_keys[34].GetKeyDown();
+            if (!VFInput.override_keys[KeyIds.Inventory].IsNull()) {
+                return VFInput.override_keys[KeyIds.Inventory].GetKeyDown();
             }
             return VFInput.noModifier && Input.GetKeyDown(KeyCode.E);
         }
 
         public static bool menuKeyDown() {
             // Function to detect whether or not the escape menu key is down
-            if (!VFInput.override_keys[47].IsNull()) {
-                return VFInput.override_keys[47].GetKeyDown();
+            if (!VFInput.override_keys[KeyIds.GameMenu].IsNull()) {
+                return VFInput.override_keys[KeyIds.GameMenu].GetKeyDown();
             }
             return VFInput.noModifier && Input.GetKeyDown(KeyCode.Escape);
         }
@@ -90,7 +100,7 @@ namespace DysonSphereProgram.Modding.BetterControls
 
             CombineKey[] keys = new CombineKey[len];
             for (int i = 0; i < len; i++) {
-                keys[i] = getKey(builtinKeys[i].key, overrideKeys[rindexes[i]]);
+                keys[i] = getKey(builtinKeys[i].key, overrideKeys[builtinKeys[i].id]);
             }
 
             // Build extra conflict groups based on the default keys that conflict
@@ -145,14 +155,23 @@ namespace DysonSphereProgram.Modding.BetterControls
                 }
             }
 
-            // Link keys (32 and 34, 33 and 47) together (ensure that 32 is 34's value, and 33 is 47's value)
-            CombineKey k = keys[indexes[34]];
-            if (!keys[indexes[32]].IsEquals(k.keyCode, k.modifier, k.noneKey)) {
-                __instance.keyEntries[indexes[32]].OverrideKey(__instance.tempOption, k.keyCode, k.modifier, k.noneKey);
-            }
-            k = keys[indexes[47]];
-            if (!keys[indexes[33]].IsEquals(k.keyCode, k.modifier, k.noneKey)) {
-                __instance.keyEntries[indexes[33]].OverrideKey(__instance.tempOption, k.keyCode, k.modifier, k.noneKey);
+            // Link keys
+            int[] links = new int[] {
+                indexes[KeyIds.Takeoff],        indexes[KeyIds.Jump],
+                indexes[KeyIds.ClosePanel0],    indexes[KeyIds.Inventory],
+                indexes[KeyIds.ClosePanel1],    indexes[KeyIds.GameMenu]
+            };
+
+            for (int i = 0; i < links.Length; i += 2) {
+                // Link in dictionary
+                linked[links[i]] = links[i+1];
+                linked[links[i+1]] = links[i];
+                
+                // Ensure that keys are the same
+                CombineKey k = keys[links[i+1]];
+                if (!keys[links[i]].IsEquals(k.keyCode, k.modifier, k.noneKey)) {
+                    __instance.keyEntries[links[i]].OverrideKey(__instance.tempOption, k.keyCode, k.modifier, k.noneKey);
+                }
             }
         }
 
@@ -167,10 +186,12 @@ namespace DysonSphereProgram.Modding.BetterControls
         [HarmonyPatch(typeof(UIKeyEntry), nameof(UIKeyEntry.SetEntry))]
         static void SetEntry(ref UIKeyEntry __instance, int _index, BuiltinKey _builtinKey, UIOptionWindow _optionWin) {
             // Show all keybinding editor UIs.
-            __instance.setTheKeyInput.gameObject.SetActive(true);
-            __instance.setTheKeyToggle.gameObject.SetActive(true);
-            __instance.setDefaultUIButton.gameObject.SetActive(true);
-            __instance.setNoneKeyUIButton.gameObject.SetActive(true);
+            if (_builtinKey.id < 71 || 78 < _builtinKey.id) { // We skip strongly hardcoded controls
+                __instance.setTheKeyInput.gameObject.SetActive(true);
+                __instance.setTheKeyToggle.gameObject.SetActive(true);
+                __instance.setDefaultUIButton.gameObject.SetActive(true);
+                __instance.setNoneKeyUIButton.gameObject.SetActive(true);
+            }
 
             // Add pair to dictionary
             indexes[_builtinKey.id] = _index;
@@ -259,13 +280,7 @@ namespace DysonSphereProgram.Modding.BetterControls
                     (groups[i] != groups[ki] || groups[i] < 0) &&
                     keys[i].IsEquals(oldKeyCode, oldModifier, oldNoneKey)
                 ) {
-                    if (c > -1 && !(
-                        // Make sure that the conflicting keys are not both linked
-                        c == indexes[32] && i == indexes[34] ||
-                        c == indexes[34] && i == indexes[32] ||
-                        c == indexes[33] && i == indexes[47] ||
-                        c == indexes[47] && i == indexes[33]
-                    )) {
+                    if (c > -1 && !(linked.ContainsKey(c) && linked[c] == i)) { // Skip linked keys
                         // At least two other keys are conflicting, no updates needed
                         c = -1;
                         break;
@@ -279,11 +294,8 @@ namespace DysonSphereProgram.Modding.BetterControls
             if (c > -1) {
                 conflicts[c] = false;
 
-                // Unmark linked keys
-                if      (c == indexes[32]) conflicts[indexes[34]] = false;
-                else if (c == indexes[34]) conflicts[indexes[32]] = false;
-                else if (c == indexes[33]) conflicts[indexes[47]] = false;
-                else if (c == indexes[47]) conflicts[indexes[33]] = false;
+                // Unmark linked key
+                if (linked.ContainsKey(c)) conflicts[linked[c]] = false;
             }
             conflicts[ki] = false;
 
@@ -299,11 +311,8 @@ namespace DysonSphereProgram.Modding.BetterControls
                     conflicts[i] = true;
                     conflicts[ki] = true;
 
-                    // Mark linked keys
-                    if      (i == indexes[32]) conflicts[indexes[34]] = true;
-                    else if (i == indexes[34]) conflicts[indexes[32]] = true;
-                    else if (i == indexes[33]) conflicts[indexes[47]] = true;
-                    else if (i == indexes[47]) conflicts[indexes[33]] = true;
+                    // Mark linked key
+                    if (linked.ContainsKey(i)) conflicts[linked[c]] = true;
 
                     __instance.StartConflictText(i);
                     __instance.setTheKeyToggle.isOn = false;
@@ -313,15 +322,9 @@ namespace DysonSphereProgram.Modding.BetterControls
                 }
             }
 
-            // Link keys 32 and 34, as well as 33 and 47. They change each other
-            if (id == 32) {
-                __instance.optionWin.keyEntries[indexes[34]].OverrideKey(tempOption, newKeyCode, newModifier, newNoneKey);
-            } else if (id == 34) {
-                __instance.optionWin.keyEntries[indexes[32]].OverrideKey(tempOption, newKeyCode, newModifier, newNoneKey);
-            } else if (id == 33) {
-                __instance.optionWin.keyEntries[indexes[47]].OverrideKey(tempOption, newKeyCode, newModifier, newNoneKey);
-            } else if (id == 47) {
-                __instance.optionWin.keyEntries[indexes[33]].OverrideKey(tempOption, newKeyCode, newModifier, newNoneKey);
+            // Link key with another. They change each other
+            if (linked.ContainsKey(ki)) {
+                __instance.optionWin.keyEntries[linked[ki]].OverrideKey(tempOption, newKeyCode, newModifier, newNoneKey);
             }
 
             return false;
