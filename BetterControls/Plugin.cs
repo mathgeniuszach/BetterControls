@@ -14,7 +14,7 @@ namespace DysonSphereProgram.Modding.BetterControls
     {
         public const string GUID = "com.zach.BetterControls";
         public const string NAME = "BetterControls";
-        public const string VERSION = "0.1.0";
+        public const string VERSION = "0.1.1";
 
         private Harmony _harmony;
         internal static ManualLogSource Log;

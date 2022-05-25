@@ -1,6 +1,6 @@
 {
     "name": "BetterControls",
-    "version_number": "0.1.0",
+    "version_number": "0.1.1",
     "website_url": "https://github.com/xMGZx/better-controls",
     "description": "This mod makes remapping controls a bit less annoying to deal with.",
     "dependencies": ["xiaoye97-BepInEx-5.4.17"]
