@@ -6,7 +6,6 @@ Specifically, it:
 - Lets you remap controls that you couldn't remap before (like the key to open your inventory)
 - Lets you remap controls to keys that conflict with other controls (and displays conflicting keys in red)
 - Lets you remap controls that could only use mouse buttons to other keys too
-- Changes the text on certain UI elements to match with your keybindings
 
 A few other things to note:
 - Just because two keys are marked in red doesn't mean that they won't both work together; that is only a possibility.
