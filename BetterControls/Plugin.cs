@@ -14,7 +14,7 @@ namespace DysonSphereProgram.Modding.BetterControls
     {
         public const string GUID = "com.zach.BetterControls";
         public const string NAME = "BetterControls";
-        public const string VERSION = "0.1.1";
+        public const string VERSION = "0.1.3";
 
         private Harmony _harmony;
         internal static ManualLogSource Log;
@@ -46,7 +46,6 @@ namespace DysonSphereProgram.Modding.BetterControls
         static bool[] conflicts = null;
         static Color conflictColor = Color.red;
         static Dictionary<int, int> indexes = new Dictionary<int, int>();
-        static Dictionary<int, int> rindexes = new Dictionary<int, int>();
         static Dictionary<int, int> groups = new Dictionary<int, int>();
         static Dictionary<int, int> linked = new Dictionary<int, int>();
 
@@ -100,7 +99,11 @@ namespace DysonSphereProgram.Modding.BetterControls
 
             CombineKey[] keys = new CombineKey[len];
             for (int i = 0; i < len; i++) {
-                keys[i] = getKey(builtinKeys[i].key, overrideKeys[builtinKeys[i].id]);
+                BuiltinKey k = builtinKeys[i];
+                // Build keys array
+                keys[i] = getKey(k.key, overrideKeys[k.id]);
+                // Build indexes array
+                indexes[k.id] = i;
             }
 
             // Build extra conflict groups based on the default keys that conflict
@@ -192,10 +195,6 @@ namespace DysonSphereProgram.Modding.BetterControls
                 __instance.setDefaultUIButton.gameObject.SetActive(true);
                 __instance.setNoneKeyUIButton.gameObject.SetActive(true);
             }
-
-            // Add pair to dictionary
-            indexes[_builtinKey.id] = _index;
-            rindexes[_index] = _builtinKey.id;
         }
 
         [HarmonyPostfix]
@@ -218,9 +217,11 @@ namespace DysonSphereProgram.Modding.BetterControls
         [HarmonyPrefix]
         [HarmonyPatch(typeof(UIKeyEntry), nameof(UIKeyEntry.OverrideKey))]
         static bool OverrideKey(ref UIKeyEntry __instance, GameOption tempOption, int keyCode, byte modifier, bool noneKey) {
+            Plugin.Log.LogInfo("A");
             if (__instance.inputUIButton._isPointerEnter && Input.GetKeyDown(KeyCode.Mouse0)) {
                 __instance.nextNotOn = true;
             }
+            Plugin.Log.LogInfo("B");
 
             int id = __instance.builtinKey.id;
             int ki = indexes[id];
@@ -233,8 +234,9 @@ namespace DysonSphereProgram.Modding.BetterControls
 
             CombineKey[] keys = new CombineKey[len];
             for (int i = 0; i < len; i++) {
-                keys[i] = getKey(builtinKeys[i].key, overrideKeys[rindexes[i]]);
+                keys[i] = getKey(builtinKeys[i].key, overrideKeys[builtinKeys[i].id]);
             }
+            Plugin.Log.LogInfo("C");
 
             // Get old key
             int oldKeyCode = keys[ki].keyCode;
@@ -256,6 +258,7 @@ namespace DysonSphereProgram.Modding.BetterControls
                 __instance.inputUIButton.highlighted = false;
                 return false;
             }
+            Plugin.Log.LogInfo("D");
 
             // Always update the keycode
             if (thiskey.IsEquals(newKeyCode, newModifier, newNoneKey)) {
@@ -270,6 +273,8 @@ namespace DysonSphereProgram.Modding.BetterControls
 
             __instance.optionWin.SetTempOption(tempOption);
             __instance.inputUIButton.highlighted = false;
+
+            Plugin.Log.LogInfo("E");
 
             // Calculate any keys with conflicts before
             int c = -1;
@@ -290,6 +295,8 @@ namespace DysonSphereProgram.Modding.BetterControls
                 }
             }
 
+            Plugin.Log.LogInfo("F");
+
             // If there is just one key that used to conflict with this key, update it
             if (c > -1) {
                 conflicts[c] = false;
@@ -298,6 +305,8 @@ namespace DysonSphereProgram.Modding.BetterControls
                 if (linked.ContainsKey(c)) conflicts[linked[c]] = false;
             }
             conflicts[ki] = false;
+
+            Plugin.Log.LogInfo("G");
 
             // Calculate any keys with conflicts after
             for (int i = 0; i < len; i++) {
@@ -312,7 +321,7 @@ namespace DysonSphereProgram.Modding.BetterControls
                     conflicts[ki] = true;
 
                     // Mark linked key
-                    if (linked.ContainsKey(i)) conflicts[linked[c]] = true;
+                    if (linked.ContainsKey(i)) conflicts[linked[i]] = true;
 
                     __instance.StartConflictText(i);
                     __instance.setTheKeyToggle.isOn = false;
@@ -323,9 +332,11 @@ namespace DysonSphereProgram.Modding.BetterControls
             }
 
             // Link key with another. They change each other
+            Plugin.Log.LogInfo("ASDF");
             if (linked.ContainsKey(ki)) {
                 __instance.optionWin.keyEntries[linked[ki]].OverrideKey(tempOption, newKeyCode, newModifier, newNoneKey);
             }
+            Plugin.Log.LogInfo("BSDF");
 
             return false;
         }
