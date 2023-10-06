@@ -1,7 +1,7 @@
 {
-    "name": "BetterControls",
-    "version_number": "0.1.3",
-    "website_url": "https://github.com/xMGZx/better-controls",
+    "name": "%PROJECT%",
+    "version_number": "%VERSION%",
+    "website_url": "https://github.com/xMGZx/BetterControls",
     "description": "Makes remapping controls a bit less annoying to deal with.",
     "dependencies": ["xiaoye97-BepInEx-5.4.17"]
 }
