@@ -31,4 +31,6 @@
     <ZipDirectory DestinationFile="bin/$(TargetName)-$(Version).zip" SourceDirectory="$(TargetDir)" Overwrite="true"/>
   </Target>
 
+  <!-- ~/.config/r2modmanPlus-local/DysonSphereProgram/profiles/Profile/BepInEx/plugins/ -->
+  
 </Project>
